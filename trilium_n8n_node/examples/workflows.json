@@ -1,0 +1,328 @@
+{
+  "workflows": [
+    {
+      "name": "Daily Note Creation",
+      "description": "Creates a daily journal note in Trilium",
+      "nodes": [
+        {
+          "id": "1",
+          "type": "triliumNoteCreate",
+          "parameters": {
+            "parentNoteId": "calendar_root_id",
+            "title": "Journal - {{ $now.format('YYYY-MM-DD') }}",
+            "content": "# Daily Journal\n\n## Tasks\n- [ ] Review yesterday's notes\n- [ ] Plan today's activities\n- [ ] Update project status\n\n## Notes\n\n## Reflections\n",
+            "noteType": "text",
+            "labels": {
+              "label": [
+                {
+                  "name": "type",
+                  "value": "journal"
+                },
+                {
+                  "name": "frequency",
+                  "value": "daily"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Task Management Integration",
+      "description": "Creates tasks in Trilium from external sources",
+      "nodes": [
+        {
+          "id": "1",
+          "type": "webhook",
+          "parameters": {
+            "httpMethod": "POST",
+            "path": "create-task"
+          }
+        },
+        {
+          "id": "2",
+          "type": "triliumNoteCreate",
+          "parameters": {
+            "parentNoteId": "tasks_inbox_id",
+            "title": "{{ $json.title || 'New Task' }}",
+            "content": "{{ $json.description || 'No description provided' }}",
+            "noteType": "text",
+            "labels": {
+              "label": [
+                {
+                  "name": "type",
+                  "value": "task"
+                },
+                {
+                  "name": "status",
+                  "value": "inbox"
+                },
+                {
+                  "name": "priority",
+                  "value": "{{ $json.priority || 'medium' }}"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "connections": [
+        {
+          "from": "1",
+          "to": "2",
+          "output": "main"
+        }
+      ]
+    },
+    {
+      "name": "Note Search and Archive",
+      "description": "Searches for old notes and archives them",
+      "nodes": [
+        {
+          "id": "1",
+          "type": "triliumNoteSearch",
+          "parameters": {
+            "searchQuery": "#status:completed AND #dateModified:<{{ $now.format('YYYY-MM-DD') }}-30days",
+            "includeArchived": false,
+            "maxResults": 100,
+            "includeMetadata": true,
+            "includeAttributes": true
+          }
+        },
+        {
+          "id": "2",
+          "type": "splitInBatches",
+          "parameters": {
+            "batchSize": 10
+          }
+        },
+        {
+          "id": "3",
+          "type": "triliumNoteUpdate",
+          "parameters": {
+            "noteId": "{{ $json.noteId }}",
+            "updateMode": "archive",
+            "archiveLabel": "archived"
+          }
+        }
+      ],
+      "connections": [
+        {
+          "from": "1",
+          "to": "2",
+          "output": "main"
+        },
+        {
+          "from": "2",
+          "to": "3",
+          "output": "main"
+        }
+      ]
+    },
+    {
+      "name": "Weekly Backup Automation",
+      "description": "Creates automated weekly backups of Trilium data",
+      "nodes": [
+        {
+          "id": "1",
+          "type": "cron",
+          "parameters": {
+            "triggerOnStartup": false,
+            "rule": "0 2 * * 0"
+          }
+        },
+        {
+          "id": "2",
+          "type": "triliumBackup",
+          "parameters": {
+            "backupName": "weekly-backup-{{ $now.format('YYYY-MM-DD') }}",
+            "backupType": "full",
+            "compression": "gzip",
+            "includeMetadata": true
+          }
+        },
+        {
+          "id": "3",
+          "type": "moveFile",
+          "parameters": {
+            "sourcePath": "{{ $json.backupFileName }}",
+            "destinationPath": "/backup/trilium/weekly/{{ $json.backupFileName }}"
+          }
+        }
+      ],
+      "connections": [
+        {
+          "from": "1",
+          "to": "2",
+          "output": "main"
+        },
+        {
+          "from": "2",
+          "to": "3",
+          "output": "main"
+        }
+      ]
+    },
+    {
+      "name": "Project Note Creation",
+      "description": "Creates structured project notes with templates",
+      "nodes": [
+        {
+          "id": "1",
+          "type": "form",
+          "parameters": {
+            "formFields": [
+              {
+                "fieldLabel": "Project Name",
+                "fieldName": "projectName",
+                "fieldType": "text",
+                "required": true
+              },
+              {
+                "fieldLabel": "Project Type",
+                "fieldName": "projectType",
+                "fieldType": "select",
+                "options": [
+                  { "label": "Software Development", "value": "software" },
+                  { "label": "Research", "value": "research" },
+                  { "label": "Documentation", "value": "documentation" },
+                  { "label": "Planning", "value": "planning" }
+                ]
+              },
+              {
+                "fieldLabel": "Description",
+                "fieldName": "description",
+                "fieldType": "textarea"
+              }
+            ]
+          }
+        },
+        {
+          "id": "2",
+          "type": "triliumNoteCreate",
+          "parameters": {
+            "parentNoteId": "projects_root_id",
+            "title": "Project: {{ $json.projectName }}",
+            "content": "# {{ $json.projectName }}\n\n**Type:** {{ $json.projectType }}\n**Created:** {{ $now.format('YYYY-MM-DD HH:mm') }}\n\n## Description\n{{ $json.description }}\n\n## Tasks\n\n## Notes\n\n## Timeline\n\n## Resources\n",
+            "noteType": "text",
+            "labels": {
+              "label": [
+                {
+                  "name": "type",
+                  "value": "project"
+                },
+                {
+                  "name": "status",
+                  "value": "active"
+                },
+                {
+                  "name": "category",
+                  "value": "{{ $json.projectType }}"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "connections": [
+        {
+          "from": "1",
+          "to": "2",
+          "output": "main"
+        }
+      ]
+    },
+    {
+      "name": "Knowledge Base Integration",
+      "description": "Creates knowledge base entries from various sources",
+      "nodes": [
+        {
+          "id": "1",
+          "type": "rssFeedRead",
+          "parameters": {
+            "url": "https://example.com/feed.xml"
+          }
+        },
+        {
+          "id": "2",
+          "type": "filter",
+          "parameters": {
+            "conditions": [
+              {
+                "fieldName": "title",
+                "operation": "contains",
+                "value": "important"
+              }
+            ]
+          }
+        },
+        {
+          "id": "3",
+          "type": "triliumNoteCreate",
+          "parameters": {
+            "parentNoteId": "knowledge_base_id",
+            "title": "{{ $json.title }}",
+            "content": "# {{ $json.title }}\n\n**Source:** {{ $json.link }}\n**Published:** {{ $json.pubDate }}\n\n{{ $json.contentSnippet }}\n\n[Read more]({{ $json.link }})",
+            "noteType": "text",
+            "labels": {
+              "label": [
+                {
+                  "name": "type",
+                  "value": "article"
+                },
+                {
+                  "name": "source",
+                  "value": "rss"
+                },
+                {
+                  "name": "category",
+                  "value": "{{ $json.category || 'general' }}"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "connections": [
+        {
+          "from": "1",
+          "to": "2",
+          "output": "main"
+        },
+        {
+          "from": "2",
+          "to": "3",
+          "output": "main"
+        }
+      ]
+    }
+  ],
+  "templates": {
+    "daily_standup": {
+      "name": "Daily Standup Template",
+      "content": "# Daily Standup - {{ $now.format('YYYY-MM-DD') }}\n\n## Yesterday\n- \n\n## Today\n- \n\n## Blockers\n- \n\n## Goals\n- ",
+      "labels": [
+        { "name": "type", "value": "standup" },
+        { "name": "frequency", "value": "daily" }
+      ]
+    },
+    "meeting_notes": {
+      "name": "Meeting Notes Template",
+      "content": "# Meeting Notes - {{ $now.format('YYYY-MM-DD HH:mm') }}\n\n## Attendees\n- \n\n## Agenda\n- \n\n## Discussion\n\n## Decisions\n\n## Action Items\n- ",
+      "labels": [
+        { "name": "type", "value": "meeting" },
+        { "name": "status", "value": "completed" }
+      ]
+    },
+    "bug_report": {
+      "name": "Bug Report Template",
+      "content": "# Bug Report\n\n## Summary\n\n## Steps to Reproduce\n1. \n2. \n3. \n\n## Expected Behavior\n\n## Actual Behavior\n\n## Environment\n- Browser: \n- OS: \n- Version: \n\n## Severity\n- [ ] Critical\n- [ ] High\n- [ ] Medium\n- [ ] Low",
+      "labels": [
+        { "name": "type", "value": "bug" },
+        { "name": "status", "value": "open" },
+        { "name": "priority", "value": "medium" }
+      ]
+    }
+  }
+}
