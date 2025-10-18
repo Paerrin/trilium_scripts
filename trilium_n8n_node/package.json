@@ -9,14 +9,14 @@
     "integration"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/your-username/trilium-n8n-node",
+  "homepage": "https://github.com/paerrin/trilium_scripts/trilium-n8n-node",
   "author": {
-    "name": "Your Name",
-    "email": "your-email@example.com"
+    "name": "paerrin",
+    "email": "paerrin@paerrinslab.com"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/your-username/trilium-n8n-node.git"
+    "url": "git+https://github.com/paerrin/trilium_scripts/trilium-n8n-node.git"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
